@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="style.css"></head><body>
 <header><img src="imagens/obraland2logo.png" alt="Minecraft Obraland 2"><p id="sub">Diário do mundo</p></header>
 <nav id="nav"></nav>
+<div id="offline" class="offline" hidden>Não consegui conectar ao servidor. Se você abriu o arquivo direto no computador, use o site publicado (ou rode <b>npm start</b>). Nada será salvo enquanto estiver sem conexão.</div>
 <main>
 <section id="reportar">
  <h2>Reportar erro</h2>
@@ -30,9 +31,9 @@
 </section>
 <section id="inicio"><h2>Início</h2>
 <div class="stats" id="stats"></div>
-  <div class="panel"><h3>Backup do mundo (site)</h3>
-  <p>Seus dados ficam salvos neste navegador. Exporte um arquivo de vez em quando para não perder nada. O backup também guarda o álbum de memórias, com todas as fotos.</p>
-  <div class="row"><button class="btn gold" id="exp">Exportar backup</button><label class="btn" style="display:inline-block">Importar backup<input id="imp" type="file" accept=".json" hidden></label></div></div>
+  <div class="panel"><h3>Backup do mundo</h3>
+  <p>Tudo que é postado aqui fica salvo no servidor e aparece para todo mundo, até o admin remover. Exporte um arquivo de vez em quando como cópia de segurança.</p>
+  <div class="row"><button class="btn gold" id="exp">Exportar backup</button><label class="btn" id="adm-import" hidden>Importar backup antigo<input id="imp" type="file" accept=".json" hidden></label></div><p class="hint" id="imp-st"></p></div>
 </section>
 <section id="videos"><h2>Vídeos e lives</h2>
  <div class="panel"><h3>Nossos criadores</h3><p>Quem grava e posta o Obraland 2: vídeos, lives e shorts. Passa lá, deixa o like e se inscreve!</p>
@@ -106,8 +107,7 @@
    <textarea name="mudancas" maxlength="1500" placeholder="O que mudou (um item por linha)&#10;Ex.: Adicionado o mod X&#10;Corrigido o crash do mod Y"></textarea>
    <div class="wide row"><button class="btn gold" type="submit">Adicionar download</button></div>
   </form>
-  <div class="dlpub"><button type="button" class="btn" id="dl-code">Copiar código para publicar</button><span class="hint">O que você adiciona aqui fica salvo só neste navegador. Para os outros verem, copie o código e cole no site (ou me envie).</span></div>
- </details>
+   </details>
  <div id="dl-main"></div>
  <div class="panel"><h3>Como instalar</h3>
   <div class="dl-steps">
@@ -133,12 +133,12 @@
 </main>
 <dialog id="mdlg"><div id="mbody"></div></dialog>
 <dialog id="dlg"><img id="dimg" alt=""></dialog>
-<footer>Obraland 2 · feito com blocos e carinho</footer>
+<footer>Obraland 2 · feito com blocos e carinho <button type="button" class="lnk" id="adm">Admin</button></footer>
 <script>
 const KEY='obraland2',tabs=[['inicio','Início'],['videos','Vídeos e lives'],['album','Momentos e memórias'],['reportar','Reportar erro'],['mural','Mural de erros'],['mundo','Informações do mundo'],['mods','Mods'],['links','Links'],['desejos','Lista de desejos']];
 const WORLD={nome:'Obraland 2',pasta:'Obraland 2 - 15h25 (Antes do Apagao)',versao:'26.3',loader:'NeoForge (com mods)',seed:'7030699092377499029',dia:216,dificuldade:'Normal',modo:'Sobrevivência',spawn:'-608 64 -416 (Overworld)',jogadores:5,comandos:'Desativados'};
 let db;try{db=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-db=db||{mundo:{nome:'Obraland 2'},coords:[],obras:[],players:[],diario:[],metas:[]};db.erros=db.erros||[];db.videos=db.videos||[];
+db=db||{mundo:{nome:'Obraland 2'},coords:[],obras:[],players:[],diario:[],metas:[]};db.videos=db.videos||[];
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch(e){alert('Sem espaço para salvar. Exporte um backup e use menos imagens ou logs menores.');return false}};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -173,21 +173,25 @@ function draw(){
   const items=db[k].filter(i=>JSON.stringify(i).toLowerCase().includes(q));
   $('#l-'+k).innerHTML=items.length?items.map(i=>`<div class="card">${render[k](i)}<div class="row"><button class="btn red" data-del="${k}" data-id="${i.id}">Excluir</button></div></div>`).join(''):`<div class="empty" style="grid-column:1/-1">${q?'Nada encontrado.':msgs[k]}</div>`}
  $('#l-metas').innerHTML=db.metas.length?db.metas.map(m=>`<div class="todo ${m.ok?'done':''}"><input type="checkbox" data-meta="${m.id}" ${m.ok?'checked':''} aria-label="Concluir"><span>${esc(m.t)}</span><button class="btn red" data-del="metas" data-id="${m.id}">X</button></div>`).join(''):'<div class="empty">Nenhuma meta. O que você quer fazer no mundo?</div>';
- {const fe=$('#e-filtro').value,fs=$('#e-st').value;
-  const it=db.erros.filter(i=>(!fe||(fe=='-'?!i.tipo:i.tipo==fe))&&(!fs||(fs=='a')==!i.ok));
-  $('#l-erros').innerHTML=it.length?it.map(i=>`<div class="card ${i.ok?'fixed':''}"><div class="tag ${i.tipo||'nt'}">${esc(i.tipo||'Sem tipo')}</div> <small>${esc(i.data)}</small><h4>${esc(i.nome)}</h4><p>${esc(i.nota)}</p>${i.imgs.length?`<div class="thumbs">${i.imgs.map((s,n)=>`<img src="${s}" data-img="${i.id}:${n}" alt="Imagem ${n+1}">`).join('')}</div>`:''}${i.files.length?`<div class="files">${i.files.map((f,n)=>`<button class="btn" data-dl="${i.id}:${n}">${esc(f.name)}</button>`).join('')}</div>`:''}<label><input type="checkbox" data-res="${i.id}" ${i.ok?'checked':''}> Resolvido</label><div class="row"><button class="btn red" data-del="erros" data-id="${i.id}">Excluir</button></div></div>`).join(''):`<div class="empty" style="grid-column:1/-1">${db.erros.length?'Nenhum erro neste filtro.':'Mural limpo. Se algo quebrar, reporte aqui.'}</div>`}
+ {const fe=$('#e-filtro').value,fs=$('#e-st').value,A=isAdm();
+  const it=ERROS.filter(i=>(!fe||(fe=='-'?!i.tipo:i.tipo==fe))&&(!fs||(fs=='a')==!i.ok)).sort((a,b)=>(b.criado||0)-(a.criado||0));
+  $('#l-erros').innerHTML=it.length?it.map(i=>`<div class="card ${i.ok?'fixed':''}"><div class="tag ${i.tipo||'nt'}">${esc(i.tipo||'Sem tipo')}</div> <small>${esc(i.criado?new Date(i.criado).toLocaleString('pt-BR'):i.data)}</small><h4>${esc(i.nome)}</h4><p>${esc(i.nota)}</p>${i.imgs.length?`<div class="thumbs">${i.imgs.map((s,n)=>`<img src="${esc(s)}" data-img="${esc(i.id)}:${n}" alt="Imagem ${n+1}" loading="lazy">`).join('')}</div>`:''}${i.files.length?`<div class="files">${i.files.map(f=>`<a class="btn" href="${esc(f.url)}" target="_blank" rel="noopener noreferrer">${esc(f.name)}</a>`).join('')}</div>`:''}<label><input type="checkbox" data-res="${esc(i.id)}" ${i.ok?'checked':''} ${A?'':'disabled'}> Resolvido</label>${A?`<div class="row"><button class="btn red" data-del="erros" data-id="${esc(i.id)}">Excluir</button></div>`:''}</div>`).join(''):`<div class="empty" style="grid-column:1/-1">${ERROS.length?'Nenhum erro neste filtro.':'Mural limpo. Se algo quebrar, reporte aqui.'}</div>`}
  const m=WORLD,pend=db.metas.filter(x=>!x.ok).length;
  $('#sub').textContent=m.nome||'Obraland 2';
- $('#stats').innerHTML=[['Dia do mundo',m.dia||0],['Erros abertos',db.erros.filter(x=>!x.ok).length],['Resolvidos',db.erros.filter(x=>x.ok).length]].map(([l,v])=>`<div class="stat"><b>${esc(v)}</b>${l}</div>`).join('');
+ $('#stats').innerHTML=[['Dia do mundo',m.dia||0],['Erros abertos',ERROS.filter(x=>!x.ok).length],['Resolvidos',ERROS.filter(x=>x.ok).length]].map(([l,v])=>`<div class="stat"><b>${esc(v)}</b>${l}</div>`).join('');
 
  $('#mundo-info').innerHTML=Object.entries({Mundo:m.nome,'Pasta do save':m.pasta,'Versão do Minecraft':m.versao,Loader:m.loader,Seed:m.seed,'Dia do mundo':m.dia,Dificuldade:m.dificuldade,'Modo de jogo':m.modo,'Spawn':m.spawn,'Jogadores no save':m.jogadores,Comandos:m.comandos}).map(([k,v])=>`<p><b>${k}:</b> ${esc(v)||'—'}</p>`).join('')}
 $$('[data-form]').forEach(f=>f.onsubmit=e=>{e.preventDefault();const k=f.dataset.form,o=Object.fromEntries(new FormData(f));o.id=uid();o.data=new Date().toLocaleDateString('pt-BR');db[k].unshift(o);save();f.reset();draw()});
 const comp=f=>new Promise(r=>{const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const k=Math.min(1,1100/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);r(c.toDataURL('image/jpeg',.7))};im.onerror=()=>r(null);im.src=u});
-$('#f-erro').onsubmit=async e=>{e.preventDefault();const f=e.target,o=Object.fromEntries(new FormData(f));
- delete o['']; o.id=uid();o.data=new Date().toLocaleString('pt-BR');o.ok=false;
- o.imgs=(await Promise.all(sel.img.map(comp))).filter(Boolean);
- o.files=[];for(const x of sel.txt){let c=await x.text();if(c.length>400000)c='[... início cortado, mantido o final do arquivo ...]\n'+c.slice(-400000);o.files.push({name:x.name,text:c})}
- db.erros.unshift(o);if(!save())db.erros.shift();else f.reset();draw()};
+$('#f-erro').onsubmit=async e=>{e.preventDefault();const f=e.target,o=Object.fromEntries(new FormData(f)),btn=f.querySelector('[type=submit]');
+ btn.disabled=true;btn.textContent='Enviando...';
+ try{
+  const imgs=[];for(const x of sel.img){const d=await comp(x);if(d)imgs.push(await upDU(d,x.name))}
+  const files=[];for(const x of sel.txt){let c=await x.text();if(c.length>400000)c='[... início cortado, mantido o final do arquivo ...]\n'+c.slice(-400000);files.push({name:x.name,url:await upTxt(x.name,c)})}
+  await api('addErro',{nome:(o.nome||'').trim(),tipo:o.tipo||'',nota:o.nota||'',imgs,files});
+  f.reset();await loadAll();
+ }catch(x){fail(x)}
+ btn.disabled=false;btn.textContent='Reportar'};
 $('#e-filtro').onchange=$('#e-st').onchange=draw;
 const fmt=n=>n<1024?n+' B':n<1048576?Math.round(n/1024)+' KB':(n/1048576).toFixed(1)+' MB';
 const sel={img:[],txt:[],mem:[]},urls=new WeakMap();
@@ -203,20 +207,34 @@ $('#f-erro').addEventListener('reset',()=>{sel.img=[];sel.txt=[];pickAll()});
 document.addEventListener('click',e=>{const t=e.target.closest('[data-rm],[data-clear]');if(!t)return;
  if(t.dataset.rm){const[k,i]=t.dataset.rm.split(':');sel[k].splice(+i,1)}else sel[t.dataset.clear].length=0;pickAll()});
 pickAll();
-/* ===== Álbum: momentos e memórias ===== */
-const idb=new Promise((res,rej)=>{try{const r=indexedDB.open('obraland2-album',1);r.onupgradeneeded=()=>r.result.createObjectStore('memorias',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}});
-idb.catch(()=>{});
-const txm=(mode,fn)=>idb.then(d=>new Promise((res,rej)=>{const t=d.transaction('memorias',mode),q=fn(t.objectStore('memorias'));t.oncomplete=()=>res(q&&q.result);t.onerror=t.onabort=()=>rej(t.error)}));
-const mAll=()=>txm('readonly',s=>s.getAll()),mPut=r=>txm('readwrite',s=>s.put(r)),mDel=id=>txm('readwrite',s=>s.delete(id));
-let MEMS=[],VW={id:null,i:0,edit:false};
-try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
-const okImg=s=>/^data:image\//i.test(s||'')?s:'';
+/* ===== Servidor: dados compartilhados por todos ===== */
+const VOTER=(()=>{let v='';try{v=localStorage.getItem('obraland2-voter')||''}catch(e){}v=v.replace(/[^a-z0-9]/gi,'').slice(0,40);if(v.length<8){v=uid()+uid();try{localStorage.setItem('obraland2-voter',v)}catch(e){}}return v})();
+let ADMIN='';try{ADMIN=sessionStorage.getItem('obraland2-admin')||''}catch(e){}
+const isAdm=()=>!!ADMIN;
+const post=async(url,body)=>{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin:ADMIN,...body})});let j={};try{j=await r.json()}catch(e){}if(!r.ok){if(r.status===401&&ADMIN){ADMIN='';try{sessionStorage.removeItem('obraland2-admin')}catch(e){}renderAll()}throw new Error(j.error||'Erro '+r.status)}return j};
+const api=(action,body)=>post('/api/data',{...body,action,voter:VOTER});
+const upDU=async(du,name)=>{const m=/^data:([^;,]+);base64,(.+)$/.exec(du||'');if(!m)throw new Error('Imagem inválida.');return(await post('/api/upload',{name:name||'foto',type:m[1],data:m[2]})).url};
+const upTxt=async(name,text)=>(await post('/api/upload',{name,type:'text/plain',data:btoa(unescape(encodeURIComponent(text)))})).url;
+const fail=e=>alert(e&&e.message?e.message:'Não consegui falar com o servidor. Tente de novo.');
+let MEMS=[],WISH=[],ERROS=[],DOWNS=[];
+const renderAll=()=>{renderAdmin();draw();renderAlbum();renderWish();renderDownloads();
+ if($('#mdlg').open){if(VW.id&&MEMS.some(x=>x.id==VW.id))openMem(VW.id,true);else $('#mdlg').close()}};
+async function loadAll(){let ok=true;try{const r=await fetch('/api/data?v='+VOTER,{cache:'no-store'});if(!r.ok)throw new Error(r.status);const d=await r.json();
+ MEMS=(d.memorias||[]).map(cleanMem);WISH=(d.desejos||[]).map(cleanWish);ERROS=(d.erros||[]).map(x=>({...x,imgs:x.imgs||[],files:x.files||[]}));DOWNS=d.downloads||[]}catch(e){ok=false}
+ $('#offline').hidden=ok;renderAll()}
+function renderAdmin(){const a=isAdm();$('#adm').textContent=a?'Sair do admin':'Admin';$('#adm-import').hidden=!a;$('#dl-add').hidden=!a}
+$('#adm').onclick=async()=>{if(isAdm()){ADMIN='';try{sessionStorage.removeItem('obraland2-admin')}catch(e){}renderAll();return}
+ const p=prompt('Senha de admin:');if(!p)return;
+ try{const j=await post('/api/data',{action:'login',admin:p});if(!j.token)throw new Error('Resposta inesperada do servidor.');ADMIN=j.token;try{sessionStorage.setItem('obraland2-admin',ADMIN)}catch(e){}renderAll()}catch(e){ADMIN='';alert(e.message)}};
+/* ===== Álbum: momentos e memórias (compartilhado) ===== */
+let VW={id:null,i:0,edit:false};
+const okImg=s=>/^https:\/\//i.test(s||'')?s:'';
 const dBR=d=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(d||'');return m?new Date(+m[1],+m[2]-1,+m[3]).toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'}):''};
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const compBig=f=>new Promise(r=>{const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const k=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);r(c.toDataURL('image/jpeg',.85))};im.onerror=()=>r(null);im.src=u});
-const cleanMem=m=>({...m,id:String(m.id),titulo:String(m.titulo||''),desc:String(m.desc||''),autor:String(m.autor||''),data:String(m.data||''),fotos:(Array.isArray(m.fotos)?m.fotos:[]).filter(s=>okImg(s)),coms:(Array.isArray(m.coms)?m.coms:[]).filter(c=>c&&c.texto).map(c=>({id:String(c.id||uid()),nome:String(c.nome||''),texto:String(c.texto),quando:String(c.quando||'')})),fav:!!m.fav,criado:+m.criado||0});
-async function saveMem(m){try{await mPut(m);return true}catch(e){alert('Não consegui salvar. O navegador pode estar sem espaço. Exporte um backup e tente com menos fotos.');return false}}
+const cleanMem=m=>({...m,id:String(m.id),titulo:String(m.titulo||''),desc:String(m.desc||''),autor:String(m.autor||''),data:String(m.data||''),fotos:(Array.isArray(m.fotos)?m.fotos:[]).filter(okImg),coms:(Array.isArray(m.coms)?m.coms:[]).map(c=>({id:String(c.id),nome:String(c.nome||''),texto:String(c.texto||''),quando:c.criado?new Date(c.criado).toLocaleString('pt-BR'):'',criado:+c.criado||0})),fav:!!m.fav,criado:+m.criado||0});
 const cur=()=>MEMS.find(x=>x.id==VW.id);
+const upMany=async(files,label)=>{const out=[];for(const f of files){const d=await compBig(f);if(d)out.push(await upDU(d,f.name))}return out};
 function renderAlbum(){const q=($('#al-q').value||'').toLowerCase(),ord=$('#al-o').value;
  const it=MEMS.filter(m=>(m.titulo+' '+m.desc+' '+m.autor+' '+m.coms.map(c=>c.texto).join(' ')).toLowerCase().includes(q));
  it.sort((a,b)=>(ord=='asc'?1:-1)*(a.data.localeCompare(b.data)||(a.criado-b.criado)));
@@ -224,40 +242,47 @@ function renderAlbum(){const q=($('#al-q').value||'').toLowerCase(),ord=$('#al-o
  let h='',y=null;
  it.forEach((m,i)=>{const yy=m.data.slice(0,4)||'Sem data';if(yy!=y){y=yy;h+=`<h3 class="year">${esc(y)}</h3>`}
   const cv=m.fotos[0];
-  h+=`<button type="button" class="memo" style="--r:${(i%2?1:-1)*(.8+(i%3)*.5)}deg" data-open="${esc(m.id)}"><span class="ph">${cv?`<img src="${cv}" alt="">`:'<span class="noph">Sem foto</span>'}${m.fotos.length>1?`<span class="cnt">${m.fotos.length} fotos</span>`:''}${m.fav?'<span class="fav">♥</span>':''}</span><span class="mt">${esc(m.titulo)}</span><span class="md">${esc(dBR(m.data))}${m.autor?' · '+esc(m.autor):''}</span>${m.coms.length?`<span class="mc">${m.coms.length} comentário${m.coms.length>1?'s':''}</span>`:''}</button>`});
- $('#album-list').innerHTML=h||`<div class="empty">${MEMS.length?'Nenhuma memória encontrada.':'Seu álbum está vazio. Guarde o primeiro momento acima!'}</div>`}
+  h+=`<button type="button" class="memo" style="--r:${(i%2?1:-1)*(.8+(i%3)*.5)}deg" data-open="${esc(m.id)}"><span class="ph">${cv?`<img src="${esc(cv)}" alt="" loading="lazy">`:'<span class="noph">Sem foto</span>'}${m.fotos.length>1?`<span class="cnt">${m.fotos.length} fotos</span>`:''}${m.fav?'<span class="fav">♥</span>':''}</span><span class="mt">${esc(m.titulo)}</span><span class="md">${esc(dBR(m.data))}${m.autor?' · '+esc(m.autor):''}</span>${m.coms.length?`<span class="mc">${m.coms.length} comentário${m.coms.length>1?'s':''}</span>`:''}</button>`});
+ $('#album-list').innerHTML=h||`<div class="empty">${MEMS.length?'Nenhuma memória encontrada.':'O álbum está vazio. Guarde o primeiro momento acima!'}</div>`}
 function openMem(id,keep){const m=MEMS.find(x=>x.id==id);if(!m)return;if(!keep)VW={id,i:0,edit:false};
- const fs=m.fotos,n=fs.length;VW.i=Math.min(VW.i,Math.max(0,n-1));
+ const A=isAdm(),fs=m.fotos,n=fs.length;VW.i=Math.min(VW.i,Math.max(0,n-1));
  let nome='';try{nome=localStorage.getItem('obraland2-nome')||''}catch(x){}
- const stage=n?`<div class="mv-stage"><img src="${fs[VW.i]}" alt="" data-zoom="1">${n>1?`<button type="button" class="btn prev" data-mnav="-1" aria-label="Foto anterior">&lt;</button><button type="button" class="btn next" data-mnav="1" aria-label="Próxima foto">&gt;</button>`:''}<span class="cnt">${VW.i+1} / ${n}</span></div>`:'<div class="mv-stage none"><span class="noph">Esta memória ainda não tem fotos. Use "Adicionar fotos".</span></div>';
- const thumbs=n?'<div class="mv-thumbs">'+fs.map((s,i)=>`<span class="th ${i==VW.i?'on':''}"><img src="${s}" alt="" data-mgo="${i}"><button type="button" class="trash" data-mrmfoto="${i}" title="Remover foto" aria-label="Remover foto">${TRASH}</button></span>`).join('')+'</div>':'';
- const info=VW.edit?`<form id="mv-ef"><div class="wide"><label>Título</label><input name="titulo" required value="${esc(m.titulo)}"></div><div><label>Data do momento</label><input type="date" name="data" required value="${esc(m.data)}"></div><div><label>Quem guardou</label><input name="autor" value="${esc(m.autor)}"></div><textarea name="desc" placeholder="Conte a história desse momento...">${esc(m.desc)}</textarea><div class="wide row"><button class="btn gold" type="submit">Salvar</button><button type="button" class="btn" data-mcancel>Cancelar</button></div></form>`
- :`<h3 class="mv-t">${esc(m.titulo)}</h3><div class="mv-meta"><span class="tag">${esc(dBR(m.data)||'Sem data')}</span>${m.autor?`<span class="tag nt">Por ${esc(m.autor)}</span>`:''}</div><p class="mv-desc">${m.desc?esc(m.desc):'Sem descrição ainda. Clique em Editar para contar essa história.'}</p>`;
- const coms=m.coms.map(c=>`<div class="cm"><div><b>${esc(c.nome||'Alguém')}</b> <small>${esc(c.quando)}</small></div><p>${esc(c.texto)}</p><button type="button" class="trash" data-mcdel="${esc(c.id)}" title="Apagar comentário" aria-label="Apagar comentário">${TRASH}</button></div>`).join('');
- $('#mbody').innerHTML=`<div class="mv"><div class="mv-left">${stage}${thumbs}</div><div class="mv-right"><div class="mv-top"><button type="button" class="btn red" data-mclose>Fechar</button></div>${info}<div class="mv-actions"><button type="button" class="btn ${m.fav?'gold':''}" data-mfav>♥ ${m.fav?'Favorita':'Favoritar'}</button><button type="button" class="btn" data-medit>Editar</button><label class="btn" for="mv-add">Adicionar fotos</label><input type="file" id="mv-add" accept="image/*" multiple hidden><button type="button" class="btn red" data-mdel>Excluir memória</button></div><h4 class="mv-ch">Comentários (${m.coms.length})</h4>${coms}<form id="mv-cf"><div><label>Seu nome</label><input name="nome" value="${esc(nome)}" placeholder="Quem está comentando"></div><textarea name="texto" required placeholder="Escreva um comentário ou uma lembrança..."></textarea><div><button class="btn gold" type="submit">Comentar</button></div></form></div></div>`;
+ const stage=n?`<div class="mv-stage"><img src="${esc(fs[VW.i])}" alt="" data-zoom="1">${n>1?`<button type="button" class="btn prev" data-mnav="-1" aria-label="Foto anterior">&lt;</button><button type="button" class="btn next" data-mnav="1" aria-label="Próxima foto">&gt;</button>`:''}<span class="cnt">${VW.i+1} / ${n}</span></div>`:'<div class="mv-stage none"><span class="noph">Esta memória ainda não tem fotos.</span></div>';
+ const thumbs=n?'<div class="mv-thumbs">'+fs.map((s,i)=>`<span class="th ${i==VW.i?'on':''}"><img src="${esc(s)}" alt="" data-mgo="${i}">${A?`<button type="button" class="trash" data-mrmfoto="${i}" title="Remover foto" aria-label="Remover foto">${TRASH}</button>`:''}</span>`).join('')+'</div>':'';
+ const info=VW.edit&&A?`<form id="mv-ef"><div class="wide"><label>Título</label><input name="titulo" required value="${esc(m.titulo)}"></div><div><label>Data do momento</label><input type="date" name="data" required value="${esc(m.data)}"></div><div><label>Quem guardou</label><input name="autor" value="${esc(m.autor)}"></div><textarea name="desc" placeholder="Conte a história desse momento...">${esc(m.desc)}</textarea><div class="wide row"><button class="btn gold" type="submit">Salvar</button><button type="button" class="btn" data-mcancel>Cancelar</button></div></form>`
+ :`<h3 class="mv-t">${esc(m.titulo)}</h3><div class="mv-meta"><span class="tag">${esc(dBR(m.data)||'Sem data')}</span>${m.autor?`<span class="tag nt">Por ${esc(m.autor)}</span>`:''}</div><p class="mv-desc">${m.desc?esc(m.desc):'Sem descrição.'}</p>`;
+ const coms=m.coms.map(c=>`<div class="cm"><div><b>${esc(c.nome||'Alguém')}</b> <small>${esc(c.quando)}</small></div><p>${esc(c.texto)}</p>${A?`<button type="button" class="trash" data-mcdel="${esc(c.id)}" title="Apagar comentário" aria-label="Apagar comentário">${TRASH}</button>`:''}</div>`).join('');
+ const acts=A?`<div class="mv-actions"><button type="button" class="btn ${m.fav?'gold':''}" data-mfav>♥ ${m.fav?'Favorita':'Favoritar'}</button><button type="button" class="btn" data-medit>Editar</button><label class="btn" for="mv-add">Adicionar fotos</label><input type="file" id="mv-add" accept="image/*" multiple hidden><button type="button" class="btn red" data-mdel>Excluir memória</button></div>`:(m.fav?'<div class="mv-actions"><span class="tag">♥ Favorita</span></div>':'');
+ $('#mbody').innerHTML=`<div class="mv"><div class="mv-left">${stage}${thumbs}</div><div class="mv-right"><div class="mv-top"><button type="button" class="btn red" data-mclose>Fechar</button></div>${info}${acts}<h4 class="mv-ch">Comentários (${m.coms.length})</h4>${coms}<form id="mv-cf"><div><label>Seu nome</label><input name="nome" value="${esc(nome)}" maxlength="60" placeholder="Quem está comentando"></div><textarea name="texto" required maxlength="1000" placeholder="Escreva um comentário ou uma lembrança..."></textarea><div><button class="btn gold" type="submit">Comentar</button></div></form></div></div>`;
  if(!$('#mdlg').open)$('#mdlg').showModal()}
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-open],[data-rand],[data-mclose],[data-mnav],[data-mgo],[data-mrmfoto],[data-mfav],[data-medit],[data-mcancel],[data-mdel],[data-mcdel],[data-zoom]');if(!t)return;const d=t.dataset;
  if(d.open!==undefined){openMem(d.open);return}
- if(d.rand!==undefined){if(MEMS.length)openMem(MEMS[Math.floor(Math.random()*MEMS.length)].id);else alert('Seu álbum ainda está vazio. Guarde o primeiro momento!');return}
+ if(d.rand!==undefined){if(MEMS.length)openMem(MEMS[Math.floor(Math.random()*MEMS.length)].id);else alert('O álbum ainda está vazio. Guarde o primeiro momento!');return}
  if(d.mclose!==undefined){$('#mdlg').close();return}
  const m=cur();if(!m)return;const n=m.fotos.length;
  if(d.mnav!==undefined){VW.i=(VW.i+ +d.mnav+n)%n;openMem(m.id,true);return}
  if(d.mgo!==undefined){VW.i=+d.mgo;openMem(m.id,true);return}
  if(d.zoom!==undefined){$('#dimg').src=m.fotos[VW.i];$('#dlg').showModal();return}
- if(d.medit!==undefined){VW.edit=true;openMem(m.id,true);return}
- if(d.mcancel!==undefined){VW.edit=false;openMem(m.id,true);return}
- if(d.mfav!==undefined){m.fav=!m.fav;await saveMem(m);openMem(m.id,true);renderAlbum();return}
- if(d.mrmfoto!==undefined){if(confirm('Remover esta foto da memória?')){m.fotos.splice(+d.mrmfoto,1);if(await saveMem(m)){openMem(m.id,true);renderAlbum()}}return}
- if(d.mcdel!==undefined){if(confirm('Apagar este comentário?')){m.coms=m.coms.filter(c=>c.id!=d.mcdel);await saveMem(m);openMem(m.id,true);renderAlbum()}return}
- if(d.mdel!==undefined){if(confirm('Excluir esta memória e todas as fotos dela? Isso não dá para desfazer.')){try{await mDel(m.id)}catch(x){alert('Não consegui excluir.');return}MEMS=MEMS.filter(x=>x.id!=m.id);$('#mdlg').close();renderAlbum()}return}
+ if(!isAdm())return;
+ try{
+  if(d.medit!==undefined){VW.edit=true;openMem(m.id,true);return}
+  if(d.mcancel!==undefined){VW.edit=false;openMem(m.id,true);return}
+  if(d.mfav!==undefined){await api('favMemoria',{id:m.id});await loadAll();return}
+  if(d.mrmfoto!==undefined){if(confirm('Remover esta foto da memória?')){await api('rmFoto',{id:m.id,index:+d.mrmfoto});await loadAll()}return}
+  if(d.mcdel!==undefined){if(confirm('Apagar este comentário?')){await api('delComentario',{mem:m.id,id:d.mcdel});await loadAll()}return}
+  if(d.mdel!==undefined){if(confirm('Excluir esta memória e todas as fotos dela? Isso não dá para desfazer.')){await api('delMemoria',{id:m.id});$('#mdlg').close();await loadAll()}return}
+ }catch(x){fail(x)}
 });
 document.addEventListener('submit',async e=>{const f=e.target,m=cur();
- if(f.id=='mv-cf'&&m){e.preventDefault();const o=Object.fromEntries(new FormData(f));m.coms.push({id:uid(),nome:(o.nome||'').trim(),texto:o.texto.trim(),quando:new Date().toLocaleString('pt-BR')});try{localStorage.setItem('obraland2-nome',(o.nome||'').trim())}catch(x){}await saveMem(m);openMem(m.id,true);renderAlbum()}
- if(f.id=='mv-ef'&&m){e.preventDefault();const o=Object.fromEntries(new FormData(f));m.titulo=o.titulo.trim()||m.titulo;m.data=o.data||m.data;m.autor=(o.autor||'').trim();m.desc=o.desc||'';VW.edit=false;await saveMem(m);openMem(m.id,true);renderAlbum()}
+ if(f.id=='mv-cf'&&m){e.preventDefault();const o=Object.fromEntries(new FormData(f)),b=f.querySelector('[type=submit]');b.disabled=true;
+  try{await api('addComentario',{mem:m.id,nome:(o.nome||'').trim(),texto:(o.texto||'').trim()});try{localStorage.setItem('obraland2-nome',(o.nome||'').trim())}catch(x){}await loadAll()}catch(x){fail(x);b.disabled=false}}
+ if(f.id=='mv-ef'&&m&&isAdm()){e.preventDefault();const o=Object.fromEntries(new FormData(f));
+  try{await api('editMemoria',{id:m.id,titulo:o.titulo,data:o.data,autor:o.autor,desc:o.desc});VW.edit=false;await loadAll()}catch(x){fail(x)}}
 });
-document.addEventListener('change',async e=>{if(e.target.id!='mv-add')return;const m=cur();if(!m)return;const files=[...e.target.files];e.target.value='';if(!files.length)return;
- document.body.style.cursor='progress';const novas=(await Promise.all(files.map(compBig))).filter(Boolean);document.body.style.cursor='';
- m.fotos.push(...novas);VW.i=m.fotos.length-1;if(await saveMem(m)){openMem(m.id,true);renderAlbum()}});
+document.addEventListener('change',async e=>{if(e.target.id!='mv-add')return;const m=cur();if(!m||!isAdm())return;const files=[...e.target.files];e.target.value='';if(!files.length)return;
+ document.body.style.cursor='progress';
+ try{const urls=await upMany(files);await api('addFotos',{id:m.id,fotos:urls});VW.i=m.fotos.length;await loadAll()}catch(x){fail(x)}
+ document.body.style.cursor=''});
 document.addEventListener('keydown',e=>{if(!$('#mdlg').open||VW.edit||/INPUT|TEXTAREA/.test(document.activeElement.tagName))return;
  if(e.key=='ArrowRight'||e.key=='ArrowLeft'){const m=cur();if(m&&m.fotos.length>1){const n=m.fotos.length;VW.i=(VW.i+(e.key=='ArrowRight'?1:n-1))%n;openMem(m.id,true)}}});
 $('#mdlg').addEventListener('click',e=>{if(e.target==e.currentTarget)e.currentTarget.close()});
@@ -266,12 +291,11 @@ $('#f-mem').addEventListener('reset',()=>{sel.mem=[];pickAll()});
 $('#f-mem').elements.data.value=today();
 $('#f-mem').onsubmit=async e=>{e.preventDefault();const f=e.target,o=Object.fromEntries(new FormData(f)),btn=f.querySelector('[type=submit]');
  btn.disabled=true;btn.textContent='Guardando...';
- const fotos=(await Promise.all(sel.mem.map(compBig))).filter(Boolean);
- const m={id:uid(),titulo:o.titulo.trim(),data:o.data||today(),autor:(o.autor||'').trim(),desc:o.desc||'',fotos,fav:false,coms:[],criado:Date.now()};
- if(await saveMem(m)){MEMS.push(m);f.reset();f.elements.data.value=today();renderAlbum()}
+ try{const fotos=await upMany(sel.mem);
+  await api('addMemoria',{titulo:(o.titulo||'').trim(),data:o.data||today(),autor:(o.autor||'').trim(),desc:o.desc||'',fotos});
+  f.reset();f.elements.data.value=today();await loadAll()}catch(x){fail(x)}
  btn.disabled=false;btn.textContent='Guardar memória'};
 $('#al-q').oninput=$('#al-o').onchange=renderAlbum;
-(async()=>{try{MEMS=(await mAll()).map(cleanMem)}catch(e){console.warn(e)}renderAlbum()})();
 const MODS=[["[26.3] SecurityCraft v1.10.2.1-beta4.jar",5680875],["ad-astra-neoforge-26.3-1.16.24-adapted-0.186-public-external-assets.jar",3823333],["AdvancementPlaques-26.3-neoforge-1.7.3.jar",196492],["ae2omnicells-26.3-neoforge-1.1.7.jar",900503],["ae2wtlib-26.3.2-beta.jar",247823],["aeinfinitybooster-neoforge-2.1.2+mc26.3.jar",42787],["alexscaves-1.1.3-neoforge+26.3.jar",75644659],["alexsmobs-2.3.0-neoforge+26.3.jar",27611330],["AmbientEnvironment-neoforge-26.3-26.3.2.jar",51107],["AmbientSounds_NEOFORGE_v6.3.11_mc26.3.jar",84817294],["antarchy-2.4.2+26.3-neoforge.jar",74701560],["anthology-1.0.7+26.3-neoforge.jar",504947],["antos-neoforge-26.3-1.6.5.jar",2435394],["apexcore-26.3.4.jar",217685],["appleskin-neoforge-mc26.3-3.0.10.jar",80755],["appliedenergistics2-26.3.1-alpha.jar",8397266],["Aquaculture-26.3-2.11.2.jar",688013],["architectury-neoforge-22.0.5.jar",622642],["AttributeFix-neoforge-MC26.3-26.3.0.1.jar",19259],["BadOptimizations-2.4.1-26.3-forge.jar",61555],["baguettelib-26.3-NeoForge-2.0.8.jar",111797],["balm-neoforge-26.3-26.3.0.3.jar",1188379],["baubley-heart-canisters-26.3-1.9.0.jar",189208],["beekeeperhut-neoforge-3.0.4+mc26.3.jar",87946],["better_fishing-1.1-neoforge-26.3.jar",388983],["betteranimationscollection-v26.3.0-mc26.3.x+neoforge.jar",163274],["better-compatability-checker-neoforge-26.3.0.1.jar",30899],["betterfpsdist-26.2-6.2.jar",19564],["betterstats-5.8.0+fn-26.3.jar",423129],["BrandonsCore-26.3-3.2.1.1.jar",1746481],["chat_heads-1.3.2-neoforge-26.3.jar",101599],["chatanimation-neoforge-1.3.5+mc26.3.jar",1069187],["cherishedworlds-neoforge-18.0.0+26.3.jar",187793],["cloth-config-neoforge-26.3.159.jar",1135657],["CodeChickenLib-26.3-4.7.0.1.jar",1282560],["codxlib-1.6.1-neoforge+26.3.jar",193732],["collective-26.3.0-8.86.jar",1665489],["colorfulhearts-neoforge-26.3-26.3.0.0.jar",135884],["commoncapabilities-26.3-neoforge-2.11.8-402.jar",292699],["cookingforblockheads-neoforge-26.3-26.3.0.3.jar",1681144],["corpsecurioscompat-26.3-NeoForge-4.2.1.jar",19933],["corpse-neoforge-1.1.22+26.3.jar",252237],["CrashAssistant-neoforge-26.2-26.3-1.11.14.jar",3450662],["create-adapted-26.3-1.31-recovered.1-public-external-assets.jar",11893555],["CreativeCore_NEOFORGE_v2.14.25_mc26.3.jar",1370613],["ctm-reborn-neoforge-4.9.2.jar",148841],["Cucumber-26.3-9.0.8.jar",259326],["cupboard-26.3-4.3.jar",34468],["curios-neoforge-17.0.1+26.3.jar",431295],["cwb-5.0.0+26.3.jar",95121],["cyclopscore-26.3-neoforge-1.30.0-1196.jar",1073063],["DetailArmorBarReconstructed-5.3.3-beta.1-26.3-neoforge.jar",130124],["Draconic-Evolution-26.3-3.1.4.1.jar",11317135],["durabilitytooltip-1.2.0-neoforge-mc26.3.jar",25125],["dynamiclights-26.3.3NF.jar",48342],["easy-villagers-neoforge-1.1.49+26.3.jar",481866],["EclipseUI-neoforge-1.0.5-neoforge-26.3.jar",1513635],["emotecraft-for-MC26.3-3.5.0-b.build.179.jar",2246411],["entity_model_features-3.3.12-26.3-neoforge.jar",665542],["entity_texture_features-7.2.7-26.3-neoforge.jar",798826],["ExplorersCompass-26.3-3.3.2-neoforge.jar",173201],["ExtendedAE-26.3-1.1.0-neoforge.jar",5779560],["extra-animations-1.0.1-neoforge+26.2.jar",680433],["factory_blocks-neoforge-1.4.2+mc26.3.jar",813058],["faewulf_lib-neoforge-26.3-1.4.0.jar",325003],["fast-ip-ping-v1.0.12-mc26.3.jar",11310],["florestaviva-1.0.0.jar",5399],["flowerymooblooms-neoforge-3.0.3+mc26.3.jar",107981],["FluxNetworks-26.3-8.1.0-port.263.jar",474408],["freecam-neoforge-1.5.1+mc26.3.jar",1783418],["friendsandfoes-neoforge-5.0.4+mc26.3.jar",4392559],["ftb-library-neoforge-26.3.0.1.jar",1632308],["ftb-ultimine-neoforge-26.3.0.6.jar",187203],["geckolib-neoforge-26.3-5.5.7.jar",1159026],["GlitchCore-neoforge-26.3-26.3.0.0.5.jar",99831],["Glodium-26.3-1.2-neoforge.jar",77332],["gpumemleakfix-26.3-1.9.jar",6933],["guideme-26.3.7-alpha.jar",5327448],["HostileNeuralNetworks-26.3-7.0.0.jar",524900],["iceandfire-neoforge-2.1.13-beta.10+26.3.jar",22171036],["Iceberg-26.3-neoforge-1.4.3.2.jar",165630],["industrialforegoing-1.21-3.6.39.jar.disabled",4717149],["industrialforegoing-26.3-3.6.39-port.jar",4626920],["integrated_api-neoforge-26.3-1.9.2.jar",472816],["integratedcrafting-26.3-neoforge-1.4.7-883.jar",553991],["integrateddynamics-26.3-neoforge-1.33.4-2445.jar",5244317],["iris-neoforge-1.11.7+mc26.3.jar",2804761],["ironchest-26.3-neoforge-16.9.3.jar",311709],["ironfurnacesneoforge-26.3-1.2.0.jar",611255],["Jade-mc26.3-NeoForge-26.3.5.jar",1084541],["jdamageindicators-neoforge-26.3-2.3.0.jar",114404],["jei-26.3-neoforge-31.17.0.109.jar",4793704],["journeymap-neoforge-26.3-6.0.10.jar",4355097],["just-hammers-neoforge-26.3.0.1.jar",103791],["justzoom_neoforge_3.1.0_MC_26.3.jar",161325],["konkrete_neoforge_1.11.1_MC_26.3.jar",580901],["KotlinLangForge-2.19.0-k2.4.21-3.1+neoforge.jar",8243413],["Ksyxis-1.4.6.jar",23873],["lanwebhook-2.0.0.jar",74168],["LegendaryTooltips-26.3-neoforge-1.6.3.jar",63346],["libIPN-neoforge-26.3-6.9.0.jar",7774399],["lithium-neoforge-0.26.3-mc26.3.jar",908506],["livingthings-neoforge-26.3-2.3.2.jar",1018345],["lootr-neoforge-26.3-1.25.42.124.jar",1526591],["MaxHealthFix-neoforge-MC26.3-26.3.0.1.jar",18297],["mcjtylib-26.3-11.0.5.jar",728197],["mcw-bridges-3.1.2-mc26.3neoforge.jar",1471637],["mcw-doors-1.1.5-mc26.3neoforge.jar",1531340],["mcw-fences-1.2.1-mc26.3neoforge.jar",731461],["mcw-furniture-3.4.2-mc26.3neoforge.jar",2450372],["mcw-holidays-1.1.3-mc26.3neoforge.jar",1040033],["mcw-lights-1.1.5-mc26.3neoforge.jar",547749],["mcw-stairs-1.0.2-mc26.3neoforge.jar",570249],["mcw-windows-2.4.2-mc26.3neoforge.jar",1393633],["Mekanism-26.3-10.8.0.homebaked.jar",13919215],["Mekanism-26.3-10.8.0.homebaked.jar.pre-smelterfix.bak",13712154],["MekanismAdditions-26.3-10.8.0.homebaked.jar",1694851],["MekanismGenerators-26.3-10.8.0.homebaked.jar",1131267],["MekanismTools-26.3-10.8.0.homebaked.jar",533732],["mezz_config-26.3-neoforge-0.7.1-standalone.jar",347265],["morevillagers-neoforge-8.2.1+26.3.jar",342368],["MouseTweaks-neoforge-mc26.3-2.31.jar",74133],["movingelevators-1.4.12-neoforge-mc26.3.jar",349077],["MysticalAgriculture-26.3-9.0.11.jar",2449973],["mythicupgrades-neoforge-26.3-5.1.1.jar",2363850],["nanite-library-neoforge-26.3.0.6.jar",131421],["naturalist-2.0.7-neoforge-26.3.jar",11420739],["NatureElytras-neoforge-26.3.jar",21953],["NaturesCompass-26.3-3.3.1-neoforge.jar",225483],["nolocatorbar-1.0.0.jar",3123],["notenoughanimations-neoforge-1.12.7-mc26.3.jar",1856768],["notenoughcrashes-neoforge-4.5.1+26.3.jar",1263762],["obratech-1.5.0.jar",46930],["ore-vein-miner-3.2.0.jar",270204],["oritech-2.0.0-exp13.jar",11704008],["oritechthings-0.1.9-port.263.jar",341001],["overflowingbars-v26.3.0-mc26.3.x+neoforge.jar",87387],["piggyback-neoforge-26.3-1.1.1.jar",343396],["pingview-neoforge-1.7.jar",16044],["pipez-neoforge-1.2.33+26.3.jar",454248],["Placebo-26.3-10.0.2.jar",353139],["PlayerAnimationLibMerged-1.2.9+mc.26.3.jar",411384],["Powah-9.0.0-alpha.jar",2698147],["PrickleMC-neoforge-MC26.3-26.3.0.2.jar",82319],["Prism-26.3-neoforge-1.1.3.jar",61255],["productivebees-26.3-15.5.0-port.jar",5420271],["productivelib-26.1.2-0.4.9-port.jar",162443],["punchy_puppies-2.0.5-neoforge-26.3.jar",195908],["punchy-3.2a-neoforge-26.3.jar",4645929],["puzzleslib-v26.3.18-mc26.3.x+neoforge.jar",1037551],["Rampart-neoforge-1.1.0+26.3.jar",96951],["Re-Avaritia-neoforge-26.3-1.4.4-release.jar",4024706],["ResourcefulConfig-6.0.2.jar",422733],["ResourcefulLib-6.0.1.jar",451360],["revampedwolf-26.3.0-27.2.0.jar",82224],["rftoolsbase-26.3-9.0.2.jar",485541],["rpc-1.3.0+26.1-26.3-neoforge.jar",21991],["SereneSeasons-neoforge-26.3-26.1.2.0.7.jar",182758],["shatterlib-neoforge-0.7.0-beta.5+26.3.jar",422000],["shogi-neoforge-26.3-26.3.0.3.jar",465094],["SimpleBackups-26.3.1.jar",341982],["sizeable_foliage-neoforge-26.3-1.3.0.jar",187185],["skinrestorer-2.11.1-26.3-neoforge.jar",284508],["smoothgui-neoforge-2.1.0+mc26.3.jar",731985],["smoothmovement-26.3-3.3.jar",57651],["SmoothPlayerAnimations_Neoforge_26.3_2.1.0.jar",772358],["sodium-neoforge-0.9.3-beta.1+mc26.3.jar",1209577],["sophisticatedbackpacks-26.3-3.26.21.2255.jar",1280433],["sophisticatedcore-26.3-1.5.39.2487.jar",1875270],["sophisticatedstorage-26.3-1.5.133.2236.jar",2167679],["sound-physics-remastered-neoforge-1.5.2+26.3.jar",202021],["stackrefill-26.3.0-6.2.jar",66467],["submarinemod-1.0.1.jar",1204103],["supermartijn642configlib-1.1.8-neoforge-mc26.3.jar",206423],["supermartijn642corelib-1.1.26d-neoforge-mc26.3.jar",622637],["takeaseat-1.0.4-26.3-neoforge.jar",61626],["tcdcommons-5.8.0+fn-26.3.jar",510530],["titanium-26.3-4.0.16.jar",604194],["trade-cycling-neoforge-1.0.23+26.3.jar",86692],["travelersbackpack-neoforge-26.3-11.4.3.jar",1478328],["vanilla_timber-2.1.2-26.3-neoforge.jar",466444],["veinminer-neoforge-2.13.1.jar",866063],["voicechat-neoforge-2.6.27+26.3.jar",4939338],["waveycapes-neoforge-1.11.3-mc26.3.jar",1754974],["waystones-neoforge-26.3-26.3.0.2.jar",1180054],["webscreens-1.0.0.jar",2413085],["wirelesschargers-1.0.10-neoforge-mc26.3.jar",365156],["worldplaytimereborn-1.2.6+26.3-neoforge.jar",53045],["xnet-26.3-10.0.1.jar",627258]];
 const modKind=f=>/\.disabled$/i.test(f)?'off':/\.bak$/i.test(f)?'bak':'on';
 const modName=f=>{let n=f.replace(/\.jar\..*$/i,'').replace(/\.jar$/i,'').replace(/^\[[^\]]*\]\s*/,'');n=n.split(/[-_+ ](?=v?\d|mc\d)/i)[0].replace(/[-_ ](neoforge|forge|for|mc)$/i,'').replace(/[-_]/g,' ').trim();return n.charAt(0).toUpperCase()+n.slice(1)};
@@ -314,72 +338,82 @@ const dlWhen=d=>{const[y,m,da]=(d.data||'').split('-');return y&&m&&da?`${da}/${
 const dlExt=d=>{const s=(d.arquivo||d.link||'').split('?')[0].toLowerCase();for(const e of ['.zip','.jar','.rar','.7z'])if(s.endsWith(e))return e;return d.t=='pack'?'.zip':'.jar'};
 function renderDownloads(){
  const T=[['pack','Modpacks completos','Pasta .zip com todos os mods. Baixe, extraia e jogue.',['#ffd23f','#a8740a'],'Nenhum modpack ainda. Quando sair um novo, ele aparece aqui.'],['mod','Mods novos','Arquivos .jar soltos para colocar na pasta mods.',['#4de3d1','#127a6c'],'Nenhum mod novo por enquanto.'],['fix','Correções e atualizações','Arquivos .jar corrigidos para trocar pelos antigos.',['#ffb13d','#b35a00'],'Nenhuma correção por enquanto.']];
- const key=d=>(d.data||'')+' '+(d.hora||'');
- db.downloads=db.downloads||[];const all=[...DOWNLOADS.map(d=>({...d,_loc:0})),...db.downloads.map(d=>({...d,_loc:1}))].sort((a,b)=>key(b).localeCompare(key(a))),last=all[0];
+ const key=d=>(d.data||'')+' '+(d.hora||''),A=isAdm();
+ const all=[...DOWNLOADS.map(d=>({...d,_loc:0})),...DOWNS.map(d=>({...d,_loc:1}))].sort((a,b)=>key(b).localeCompare(key(a))),last=all[0];
  $('#dl-stats').innerHTML=[['Modpacks',all.filter(d=>d.t=='pack').length],['Mods novos',all.filter(d=>d.t=='mod').length],['Correções',all.filter(d=>d.t=='fix').length]].map(([l,v])=>`<div class="stat"><b>${v}</b>${l}</div>`).join('');
  const card=(d,c,first)=>{const h=dlHref(d),ext=dlExt(d),w=dlWhen(d);
-  return `<div class="dlcard" style="--c1:${c[0]};--c2:${c[1]}"><div class="dlhead"><span class="ico">${pix(ICONS[d.t]||ICONS.mods)}</span><div class="dltitle"><h4>${esc(d.nome)}</h4><div class="dlmeta">${first?'<span class="dlnew">Mais recente</span>':''}${d.versao?`<span class="vnote">v${esc(d.versao)}</span>`:''}<span class="vnote">${esc(ext)}</span>${d.tam?`<span class="vnote">${esc(d.tam)}</span>`:''}${d._loc?'<span class="vnote">Salvo neste navegador</span>':''}</div></div></div>${w?`<div class="dldate">Postado em <b>${esc(w)}</b></div>`:''}${d.nota?`<p class="dlnote">${esc(d.nota)}</p>`:''}${Array.isArray(d.mudancas)&&d.mudancas.length?`<ul class="dllist">${d.mudancas.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}<div class="dlact">${h?`<a class="btn gold" href="${esc(h)}" ${d.arquivo&&!/^https?:/i.test(d.link||'')?'download ':''}target="_blank" rel="noopener noreferrer">↓ Baixar ${esc(ext)}</a><button type="button" class="btn" data-dlcopy="${esc(h)}">Copiar link</button>`:'<span class="vnote">Link em breve</span>'}${d._loc?`<button type="button" class="btn red" data-dldel="${esc(d.id)}">Excluir</button>`:''}</div></div>`};
+  return `<div class="dlcard" style="--c1:${c[0]};--c2:${c[1]}"><div class="dlhead"><span class="ico">${pix(ICONS[d.t]||ICONS.mods)}</span><div class="dltitle"><h4>${esc(d.nome)}</h4><div class="dlmeta">${first?'<span class="dlnew">Mais recente</span>':''}${d.versao?`<span class="vnote">v${esc(d.versao)}</span>`:''}<span class="vnote">${esc(ext)}</span>${d.tam?`<span class="vnote">${esc(d.tam)}</span>`:''}</div></div></div>${w?`<div class="dldate">Postado em <b>${esc(w)}</b></div>`:''}${d.nota?`<p class="dlnote">${esc(d.nota)}</p>`:''}${Array.isArray(d.mudancas)&&d.mudancas.length?`<ul class="dllist">${d.mudancas.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}<div class="dlact">${h?`<a class="btn gold" href="${esc(h)}" ${d.arquivo&&!/^https?:/i.test(d.link||'')?'download ':''}target="_blank" rel="noopener noreferrer">↓ Baixar ${esc(ext)}</a><button type="button" class="btn" data-dlcopy="${esc(h)}">Copiar link</button>`:'<span class="vnote">Link em breve</span>'}${A&&d._loc?`<button type="button" class="btn red" data-dldel="${esc(d.id)}">Excluir</button>`:''}</div></div>`};
  $('#dl-main').innerHTML=`<div class="panel dlinfo"><h3>Para jogar no mundo</h3><div class="dlchips"><span class="vnote">Minecraft ${esc(WORLD.versao)}</span><span class="vnote">${esc(WORLD.loader)}</span><span class="vnote">${last?'Última atualização: '+esc(dlWhen(last)):'Nenhuma atualização ainda'}</span></div></div>`+T.map(([t,tit,sub,c,vazio])=>{const it=all.filter(d=>d.t==t);
   return `<div class="panel dlsec" style="--c1:${c[0]};--c2:${c[1]}"><h3><span class="dlbar"></span>${tit} <span class="mcount">${it.length}</span></h3><p class="msub">${sub}</p>${it.length?`<div class="dlgrid">${it.map((d,i)=>card(d,c,i==0)).join('')}</div>`:`<div class="empty">${vazio}</div>`}</div>`}).join('')}
 renderDownloads();
 const dlDefaults=()=>{const f=$('#f-dl'),d=new Date();f.elements.data.value=today();f.elements.hora.value=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 dlDefaults();
 $('#f-dl').addEventListener('reset',()=>setTimeout(dlDefaults));
-$('#f-dl').onsubmit=e=>{e.preventDefault();const f=e.target,o=Object.fromEntries(new FormData(f)),link=(o.link||'').trim(),arq=(o.arquivo||'').trim();
+$('#f-dl').onsubmit=async e=>{e.preventDefault();const f=e.target,o=Object.fromEntries(new FormData(f)),link=(o.link||'').trim(),arq=(o.arquivo||'').trim();
  if(!link&&!arq){alert('Cole o link de download ou informe o arquivo da pasta do site.');return}
  if(link&&!/^https?:/i.test(link)){alert('O link precisa começar com http:// ou https://');return}
- db.downloads=db.downloads||[];
- db.downloads.unshift({id:uid(),t:o.t,nome:(o.nome||'').trim(),versao:(o.versao||'').trim(),tam:(o.tam||'').trim(),data:o.data||today(),hora:o.hora||'',link,arquivo:arq,nota:(o.nota||'').trim(),mudancas:(o.mudancas||'').split('\n').map(x=>x.trim()).filter(Boolean)});
- if(!save()){db.downloads.shift();return}
- f.reset();$('#dl-add').open=false;renderDownloads()};
-document.addEventListener('click',e=>{const t=e.target.closest('[data-dldel]');if(!t||!confirm('Excluir este download da lista?'))return;db.downloads=(db.downloads||[]).filter(x=>x.id!=t.dataset.dldel);save();renderDownloads()});
-$('#dl-code').onclick=e=>{const b=e.currentTarget,l=db.downloads||[];if(!l.length){alert('Você ainda não adicionou nenhum download por aqui.');return}
- const txt=l.map(d=>JSON.stringify(d,(k,v)=>k==='id'?undefined:v)).join(',\n'),ok=()=>{const o=b.textContent;b.textContent='Código copiado!';setTimeout(()=>b.textContent=o,1800)};
- try{navigator.clipboard.writeText(txt).then(ok,()=>prompt('Copie o código:',txt))}catch(x){prompt('Copie o código:',txt)}};
+ try{await api('addDownload',{t:o.t,nome:(o.nome||'').trim(),versao:(o.versao||'').trim(),tam:(o.tam||'').trim(),data:o.data||today(),hora:o.hora||'',link,arquivo:arq,nota:(o.nota||'').trim(),mudancas:(o.mudancas||'').split('\n').map(x=>x.trim()).filter(Boolean)});
+  f.reset();$('#dl-add').open=false;await loadAll()}catch(x){fail(x)}};
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-dldel]');if(!t||!isAdm()||!confirm('Excluir este download da lista?'))return;try{await api('delDownload',{id:t.dataset.dldel});await loadAll()}catch(x){fail(x)}});
 document.addEventListener('click',e=>{const t=e.target.closest('[data-dlcopy]');if(!t)return;let u=t.dataset.dlcopy;try{u=new URL(u,location.href).href}catch(x){}
  const ok=()=>{const o=t.textContent;t.textContent='Copiado!';setTimeout(()=>t.textContent=o,1500)};
  try{navigator.clipboard.writeText(u).then(ok,()=>prompt('Copie o link:',u))}catch(x){prompt('Copie o link:',u)}});
-/* ===== Lista de desejos de mods ===== */
-const widb=new Promise((res,rej)=>{try{const r=indexedDB.open('obraland2-wishlist',1);r.onupgradeneeded=()=>r.result.createObjectStore('mods',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}});
-widb.catch(()=>{});
-const wtx=(mode,fn)=>widb.then(d=>new Promise((res,rej)=>{const t=d.transaction('mods',mode),q=fn(t.objectStore('mods'));t.oncomplete=()=>res(q&&q.result);t.onerror=t.onabort=()=>rej(t.error)}));
-const wAll=()=>wtx('readonly',s=>s.getAll()),wPut=r=>wtx('readwrite',s=>s.put(r)),wDel=id=>wtx('readwrite',s=>s.delete(id));
-let WISH=[],WPIC='';
-const cleanWish=w=>({id:String(w.id),nome:String(w.nome||''),link:/^https?:\/\//i.test(w.link||'')?String(w.link):'',desc:String(w.desc||''),autor:String(w.autor||''),foto:okImg(w.foto),votos:Math.max(0,+w.votos||0),criado:+w.criado||0});
-const getVoted=()=>{try{return JSON.parse(localStorage.getItem('obraland2-votou'))||[]}catch(e){return[]}};
-const setVoted=a=>{try{localStorage.setItem('obraland2-votou',JSON.stringify(a))}catch(e){}};
+/* ===== Lista de desejos de mods (compartilhada) ===== */
+let WPIC='';
+const cleanWish=w=>({id:String(w.id),nome:String(w.nome||''),link:/^https?:\/\//i.test(w.link||'')?String(w.link):'',desc:String(w.desc||''),autor:String(w.autor||''),foto:okImg(w.foto),votos:Math.max(0,+w.votos||0),votou:!!w.votou,criado:+w.criado||0});
 const compMod=f=>new Promise(r=>{const im=new Image(),u=URL.createObjectURL(f);im.onload=()=>{const k=Math.min(1,800/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);r(c.toDataURL('image/jpeg',.82))};im.onerror=()=>r(null);im.src=u});
 const showWPic=()=>{$('#w-prev').innerHTML=WPIC?`<div class="wprev"><img src="${WPIC}" alt="Prévia da foto"><button type="button" class="btn red" data-wpicclear>Remover foto</button></div>`:'<div class="pk-none">Nenhuma foto escolhida (opcional)</div>'};
 function renderWish(){
- const q=($('#w-q').value||'').toLowerCase(),o=$('#w-o').value,voted=getVoted();
+ const q=($('#w-q').value||'').toLowerCase(),o=$('#w-o').value,A=isAdm();
  const it=WISH.filter(m=>(m.nome+' '+m.desc+' '+m.autor).toLowerCase().includes(q));
  it.sort((a,b)=>o=='a'?a.nome.localeCompare(b.nome,'pt'):o=='r'?b.criado-a.criado:(b.votos-a.votos)||(b.criado-a.criado));
  $('#w-stats').innerHTML=[['Mods na lista',WISH.length],['Votos no total',WISH.reduce((s,m)=>s+m.votos,0)]].map(([l,v])=>`<div class="stat"><b>${v}</b>${l}</div>`).join('');
- $('#w-list').innerHTML=it.length?it.map(m=>{const v=voted.includes(m.id);
-  return `<div class="wcard"><div class="wph">${m.foto?`<img src="${m.foto}" alt="${esc(m.nome)}">`:`<span class="wnoph">${esc(m.nome.charAt(0).toUpperCase()||'?')}</span>`}<span class="wvotes">♥ ${m.votos}</span></div><div class="wbody"><h4>${esc(m.nome)}</h4>${m.autor?`<span class="vnote">Pedido por ${esc(m.autor)}</span>`:''}<p>${m.desc?esc(m.desc):'Sem descrição.'}</p><div class="wact">${m.link?`<a class="btn gold" href="${esc(m.link)}" target="_blank" rel="noopener noreferrer">Ver mod</a>`:''}<button type="button" class="btn ${v?'red':''}" data-wvote="${esc(m.id)}">${v?'♥ Tirar meu voto':'♥ Também quero'}</button><button type="button" class="trash" data-wdel="${esc(m.id)}" title="Remover da lista" aria-label="Remover ${esc(m.nome)}">${TRASH}</button></div></div></div>`}).join(''):`<div class="empty" style="grid-column:1/-1">${WISH.length?'Nenhum mod encontrado.':'A lista está vazia. Adicione o primeiro mod que você quer na série!'}</div>`}
+ $('#w-list').innerHTML=it.length?it.map(m=>{const v=m.votou;
+  return `<div class="wcard"><div class="wph">${m.foto?`<img src="${esc(m.foto)}" alt="${esc(m.nome)}" loading="lazy">`:`<span class="wnoph">${esc(m.nome.charAt(0).toUpperCase()||'?')}</span>`}<span class="wvotes">♥ ${m.votos}</span></div><div class="wbody"><h4>${esc(m.nome)}</h4>${m.autor?`<span class="vnote">Pedido por ${esc(m.autor)}</span>`:''}<p>${m.desc?esc(m.desc):'Sem descrição.'}</p><div class="wact">${m.link?`<a class="btn gold" href="${esc(m.link)}" target="_blank" rel="noopener noreferrer">Ver mod</a>`:''}<button type="button" class="btn ${v?'red':''}" data-wvote="${esc(m.id)}">${v?'♥ Tirar meu voto':'♥ Também quero'}</button>${A?`<button type="button" class="trash" data-wdel="${esc(m.id)}" title="Remover da lista" aria-label="Remover ${esc(m.nome)}">${TRASH}</button>`:''}</div></div></div>`}).join(''):`<div class="empty" style="grid-column:1/-1">${WISH.length?'Nenhum mod encontrado.':'A lista está vazia. Adicione o primeiro mod que você quer na série!'}</div>`}
 $('#w-img').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const d=await compMod(f);if(d){WPIC=d;showWPic()}else alert('Não consegui ler essa imagem. Tente outra.')};
 $('#f-wish').addEventListener('reset',()=>{WPIC='';showWPic()});
 $('#f-wish').onsubmit=async e=>{e.preventDefault();const f=e.target,o=Object.fromEntries(new FormData(f)),btn=f.querySelector('[type=submit]');
  btn.disabled=true;
- const m=cleanWish({id:uid(),nome:(o.nome||'').trim(),link:(o.link||'').trim(),desc:(o.desc||'').trim(),autor:(o.autor||'').trim(),foto:WPIC,votos:1,criado:Date.now()});
- try{await wPut(m);WISH.push(m);setVoted([...getVoted(),m.id]);f.reset();renderWish()}catch(x){alert('Não consegui salvar. O navegador pode estar sem espaço. Exporte um backup e tente com uma foto menor.')}
+ try{const foto=WPIC?await upDU(WPIC,'mod'):'';
+  await api('addDesejo',{nome:(o.nome||'').trim(),link:(o.link||'').trim(),desc:(o.desc||'').trim(),autor:(o.autor||'').trim(),foto});
+  f.reset();await loadAll()}catch(x){fail(x)}
  btn.disabled=false};
 document.addEventListener('click',async e=>{const t=e.target.closest('[data-wvote],[data-wdel],[data-wpicclear]');if(!t)return;const d=t.dataset;
  if(d.wpicclear!==undefined){WPIC='';showWPic();return}
- const m=WISH.find(x=>x.id==(d.wvote||d.wdel));if(!m)return;
- if(d.wvote){const vs=getVoted(),has=vs.includes(m.id);m.votos=Math.max(0,m.votos+(has?-1:1));setVoted(has?vs.filter(x=>x!=m.id):[...vs,m.id]);try{await wPut(m)}catch(x){}renderWish();return}
- if(d.wdel&&confirm('Remover este mod da lista de desejos?')){try{await wDel(m.id)}catch(x){alert('Não consegui remover.');return}WISH=WISH.filter(x=>x.id!=m.id);renderWish()}});
+ try{
+  if(d.wvote){const r=await api('voto',{id:d.wvote}),m=WISH.find(x=>x.id==d.wvote);if(m){m.votos=r.votos;m.votou=r.votou}renderWish();return}
+  if(d.wdel&&isAdm()&&confirm('Remover este mod da lista de desejos?')){await api('delDesejo',{id:d.wdel});await loadAll()}
+ }catch(x){fail(x)}});
 $('#w-q').oninput=$('#w-o').onchange=renderWish;
 showWPic();
-(async()=>{try{WISH=(await wAll()).map(cleanWish)}catch(e){console.warn(e)}renderWish()})();
 $('#f-metas').onsubmit=e=>{e.preventDefault();db.metas.push({id:uid(),t:e.target.t.value,ok:false});save();e.target.reset();draw()};
 $$('[data-search]').forEach(i=>i.oninput=draw);
-document.addEventListener('click',e=>{const d=e.target.dataset;
- if(d.img){const[i,n]=d.img.split(':');$('#dimg').src=db.erros.find(x=>x.id==i).imgs[n];$('#dlg').showModal()}
- if(d.dl){const[i,n]=d.dl.split(':'),f=db.erros.find(x=>x.id==i).files[n],a=document.createElement('a');a.href=URL.createObjectURL(new Blob([f.text],{type:'text/plain'}));a.download=f.name;a.click()}if(d.del&&confirm('Excluir este item?')){db[d.del]=db[d.del].filter(i=>i.id!=d.id);save();draw()}});
-document.addEventListener('change',e=>{if(e.target.dataset.res){const m=db.erros.find(x=>x.id==e.target.dataset.res);m.ok=e.target.checked;save();draw()}
- if(e.target.dataset.meta){const m=db.metas.find(x=>x.id==e.target.dataset.meta);m.ok=e.target.checked;save();draw()}});
-$('#exp').onclick=async()=>{let mem=[],des=[];try{mem=await mAll()}catch(x){}try{des=await wAll()}catch(x){}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({...db,memorias:mem,desejos:des},null,1)],{type:'application/json'}));a.download='obraland2-backup.json';a.click()};
-$('#imp').onchange=e=>{const r=new FileReader();r.onload=async()=>{try{db=JSON.parse(r.result);const mems=Array.isArray(db.memorias)?db.memorias:[];delete db.memorias;const dess=Array.isArray(db.desejos)?db.desejos:[];delete db.desejos;db.erros=db.erros||[];db.videos=db.videos||[];save();draw();renderDownloads();for(const m of mems)if(m&&m.id)await mPut(m);for(const w of dess)if(w&&w.id)await wPut(cleanWish(w));WISH=(await wAll()).map(cleanWish);renderWish();MEMS=(await mAll()).map(cleanMem);renderAlbum();alert('Backup importado!')}catch(x){alert('Arquivo inválido. Escolha um .json exportado por este site.')}};r.readAsText(e.target.files[0])};
-draw();go(tabs.some(t=>t[0]==location.hash.slice(1))?location.hash.slice(1):'inicio');
+document.addEventListener('click',async e=>{const t=e.target.closest('[data-img],[data-del]');if(!t)return;const d=t.dataset;
+ if(d.img){const[i,n]=d.img.split(':'),x=ERROS.find(y=>y.id==i);if(x&&x.imgs[n]){$('#dimg').src=x.imgs[n];$('#dlg').showModal()}return}
+ if(d.del=='erros'){if(isAdm()&&confirm('Excluir este erro?')){try{await api('delErro',{id:d.id});await loadAll()}catch(x){fail(x)}}return}
+ if(d.del&&Array.isArray(db[d.del])&&confirm('Excluir este item?')){db[d.del]=db[d.del].filter(i=>i.id!=d.id);save();draw()}});
+document.addEventListener('change',async e=>{const t=e.target;
+ if(t.dataset.res){if(!isAdm()){t.checked=!t.checked;return}try{await api('resolveErro',{id:t.dataset.res,ok:t.checked});await loadAll()}catch(x){fail(x);await loadAll()}}
+ if(t.dataset.meta){const m=db.metas.find(x=>x.id==t.dataset.meta);m.ok=t.checked;save();draw()}});
+$('#exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({memorias:MEMS,desejos:WISH,erros:ERROS,downloads:DOWNS},null,1)],{type:'application/json'}));a.download='obraland2-backup.json';a.click()};
+$('#imp').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+ if(!isAdm()){alert('Entre como admin (link no rodapé) para importar um backup.');return}
+ const r=new FileReader();r.onload=async()=>{let d;try{d=JSON.parse(r.result)}catch(x){alert('Arquivo inválido. Escolha um .json exportado por este site.');return}
+  const st=$('#imp-st'),imgs=async a=>{const o=[];for(const s of Array.isArray(a)?a:[]){if(/^data:image\//i.test(s))o.push(await upDU(s));else if(/^https:\/\//i.test(s))o.push(s)}return o};
+  const one=async(x)=>/^data:image\//i.test(x||'')?await upDU(x):(x||'');
+  let n=0,tot=(d.memorias||[]).length+(d.desejos||[]).length+(d.erros||[]).length+(d.downloads||[]).length;
+  const tick=()=>st.textContent='Importando '+(++n)+' de '+tot+'...';
+  try{
+   for(const m of d.memorias||[]){tick();await api('importItem',{kind:'memoria',item:{...m,fotos:await imgs(m.fotos),coms:(m.coms||[]).map(c=>({id:c.id,nome:c.nome,texto:c.texto,criado:c.criado||Date.parse(c.quando)||0}))}})}
+   for(const w of d.desejos||[]){tick();await api('importItem',{kind:'desejo',item:{...w,foto:await one(w.foto)}})}
+   for(const x of d.erros||[]){tick();const files=[];for(const fl of x.files||[]){if(fl&&fl.text!=null)files.push({name:fl.name,url:await upTxt(fl.name||'log.txt',fl.text)});else if(fl&&fl.url)files.push(fl)}
+    await api('importItem',{kind:'erro',item:{...x,imgs:await imgs(x.imgs),files,criado:x.criado||Date.parse(x.data)||0}})}
+   for(const x of d.downloads||[]){tick();await api('importItem',{kind:'download',item:x})}
+   st.textContent='Importação concluída: '+tot+' itens.';await loadAll()
+  }catch(x){st.textContent='';fail(x);await loadAll()}};
+ r.readAsText(f)};
+let syncing=false;const sync=async()=>{if(syncing||document.hidden||$('#mdlg').open||$('#dlg').open)return;syncing=true;try{await loadAll()}finally{syncing=false}};
+addEventListener('focus',sync);document.addEventListener('visibilitychange',sync);setInterval(sync,30000);
+if(ADMIN)post('/api/data',{action:'login'}).catch(()=>{});
+draw();loadAll();go(tabs.some(t=>t[0]==location.hash.slice(1))?location.hash.slice(1):'inicio');
 </script></body></html>

@@ -2,12 +2,16 @@
   "name": "obraland2",
   "version": "1.0.0",
   "private": true,
-  "description": "Obraland 2 — Diário do Mundo. Site estático (HTML + CSS + JS puro) para o mundo de Minecraft Obraland 2.",
+  "description": "Obraland 2 - Diario do Mundo. Site de Minecraft com HTML/CSS/JS puro e funcoes da Vercel (api/) para dados compartilhados.",
   "scripts": {
-    "start": "npx --yes serve .",
+    "start": "npx --yes vercel dev",
     "dev": "npx --yes vercel dev"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.41.1",
+    "@vercel/blob": "^2.9.0"
   }
 }

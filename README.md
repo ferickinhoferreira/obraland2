@@ -2,13 +2,14 @@
 
 Site do mundo de Minecraft **Obraland 2**: vídeos e lives, álbum de memórias, mural de erros, lista de mods, links de download e lista de desejos.
 
-É um site **estático** (HTML + CSS + JavaScript puro). Não tem build, não tem dependências e roda direto na Vercel.
+É um site **estático** (HTML + CSS + JavaScript puro, sem build) com funções da Vercel em `api/` para os dados compartilhados.
 
 ## Estrutura
 
 ```
 index.html      página e toda a lógica
 style.css       estilo
+api/            funções da Vercel (dados e uploads)
 imagens/        logo e imagens
 vercel.json     configuração da Vercel
 package.json    atalhos para rodar localmente
@@ -57,8 +58,40 @@ No `index.html`, procure `const DOWNLOADS=[` e siga o exemplo comentado acima da
 
 No `index.html`, procure `const MODS=[` e atualize a lista com os arquivos da pasta `mods` do Minecraft.
 
-## Importante: onde os dados ficam
+## Dados compartilhados (como funciona)
 
-Memórias, erros reportados, metas, desejos e votos ficam salvos **no navegador de cada pessoa** (localStorage e IndexedDB). Eles não são compartilhados entre visitantes. Use **Exportar backup** na aba Início para guardar uma cópia.
+Memórias, comentários, erros reportados, lista de desejos (com votos) e downloads publicados ficam **no servidor** e aparecem para **todos os visitantes**. Qualquer pessoa pode publicar, comentar e votar; **só o admin pode excluir ou editar**. A checagem é feita no servidor (`api/data.js`), não só na tela.
 
-Para o conteúdo ser o mesmo para todo mundo, ele precisa estar no código (como `MEDIA`, `DOWNLOADS` e `MODS`) ou o site precisa de um banco de dados.
+- `api/data.js` – leitura e escrita dos dados (banco Upstash Redis)
+- `api/upload.js` – envio de fotos (JPG/PNG/WebP/GIF) e logs (.txt) de até 3 MB para o Vercel Blob
+- `api/_lib.js` – validação, limite de uso, autenticação do admin
+- Metas, coordenadas, obras, jogadores e diário continuam **só no navegador** de cada pessoa (localStorage).
+- **Exportar/Importar backup** (aba Início) gera/restaura um `.json` com todos os dados compartilhados (importar exige admin).
+
+## Configuração obrigatória na Vercel (produção)
+
+No painel do projeto: **Storage** e **Settings → Environment Variables** (marque Production, Preview e Development):
+
+1. **Banco**: Storage → Create → *Upstash for Redis* (Marketplace) → conecte ao projeto. Isso cria `KV_REST_API_URL` e `KV_REST_API_TOKEN` (o código também aceita `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`).
+2. **Arquivos**: Storage → Create → *Blob* com acesso **Public** → conecte ao projeto. Isso cria `BLOB_READ_WRITE_TOKEN`.
+3. **Senha do admin**: crie a variável `ADMIN_PASSWORD` com uma senha longa e única.
+4. Faça um **Redeploy** depois de criar/alterar variáveis (elas só valem em deploys novos).
+
+Sem essas variáveis a API responde 503 com uma mensagem explicando o que falta (banco, Blob ou senha de admin). Os dados persistem no Redis/Blob, não nos arquivos do deploy.
+
+## Testes
+
+```bash
+cd _patch/test
+npm install
+npm test
+```
+
+Os testes rodam as funções reais de `api/` e o `index.html` real (jsdom) com Redis/Blob simulados em memória. Eles **não** substituem um teste no deploy de verdade (veja o roteiro de verificação pós-deploy abaixo).
+
+## Verificação pós-deploy (manual)
+
+1. Abra o site em duas janelas (uma anônima), publique um erro numa e veja na outra.
+2. Clique em **Admin** no rodapé, entre com `ADMIN_PASSWORD` e exclua o item de teste; na janela anônima não deve existir botão de excluir.
+3. Envie uma foto numa memória e confirme que ela aparece e continua lá após recarregar.
+4. Exporte um backup e confira que o arquivo contém os dados.

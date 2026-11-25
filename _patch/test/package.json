@@ -1,0 +1,14 @@
+{
+  "name": "test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node run.js"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "dependencies": {
+    "jsdom": "^31.0.1"
+  }
+}
