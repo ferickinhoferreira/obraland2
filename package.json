@@ -1,0 +1,13 @@
+{
+  "name": "obraland2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Obraland 2 — Diário do Mundo. Site estático (HTML + CSS + JS puro) para o mundo de Minecraft Obraland 2.",
+  "scripts": {
+    "start": "npx --yes serve .",
+    "dev": "npx --yes vercel dev"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

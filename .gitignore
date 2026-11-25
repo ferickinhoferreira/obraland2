@@ -1,0 +1,20 @@
+# Dependências / Vercel
+node_modules/
+.vercel/
+.env
+.env.*
+
+# Sistema e editores
+Thumbs.db
+desktop.ini
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Arquivos pesados (limite do GitHub: 100 MB por arquivo).
+# Hospede modpacks e mods em Drive/Mega/Mediafire e use o link na aba "Links".
+*.zip
+*.jar
+*.rar
+*.7z
